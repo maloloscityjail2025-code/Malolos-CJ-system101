@@ -396,7 +396,7 @@ st.markdown(
     f'{ALERT_STATUS}'
     f'</div>'
     f'</div>'
-    f'<div class="hdr-date">PDL DETAINED AS OF<br><b>{datetime.now():%B %d, %Y}</b></div>'
+    f'<div class="hdr-date">PDL DETAINED AS OF<br><b>{datetime.now(ZoneInfo("Asia/Manila")):%B %d, %Y}</b></div>'
     f'</div>',
     unsafe_allow_html=True
 )
