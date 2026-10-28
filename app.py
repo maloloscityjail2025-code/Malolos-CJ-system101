@@ -1,10 +1,10 @@
 import base64
 from datetime import datetime
 
-# Kunin ang live na petsa ngayon
+# 1. Ideklara muna ang variable na ito bago mo gamitin:
 current_date = datetime.now().strftime("%B %d, %Y")
 
-# Gamitin ito sa iyong dashboard display
+# 2. Pagkatapos ay saka mo i-display sa st.markdown:
 st.markdown(f"PDL DETAINED AS OF **{current_date}**")
 import os
 
