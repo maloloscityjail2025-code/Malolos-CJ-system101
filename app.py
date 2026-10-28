@@ -226,6 +226,8 @@ elif "RED" in ALERT_STATUS:
 
 st.sidebar.markdown("---")
 st.sidebar.header("➕ Magdagdag ng PDL")
+
+# Form para sa pagdadagdag kasama ang Duplicate Validation
 with st.sidebar.form("pdl_form"):
     new_id = int(data['PDL ID'].max() + 1) if not data.empty else 101
     new_name = st.text_input("Pangalan ng PDL")
@@ -237,12 +239,22 @@ with st.sidebar.form("pdl_form"):
     new_room = st.selectbox("Room / Cell", ROOMS)
     submit_button = st.form_submit_button("I-save ang PDL")
 
-    if submit_button and new_name:
-        new_row = pd.DataFrame([[new_id, new_name, new_age, new_branch, new_crime,
-                                 new_civil, new_status, new_room]], columns=COLUMNS)
-        st.session_state.pdl_data = pd.concat([data, new_row], ignore_index=True)
-        save_data(st.session_state.pdl_data)
-        st.rerun()
+    if submit_button:
+        if not new_name.strip():
+            st.sidebar.error("⚠️ Mangyaring ilagay ang pangalan ng PDL.")
+        else:
+            existing_names = data['Pangalan'].str.strip().str.lower() if not data.empty else pd.Series()
+            input_name_cleaned = new_name.strip().lower()
+            
+            if input_name_cleaned in existing_names.values:
+                st.sidebar.error(f"❌ Ang pangalang '{new_name}' ay nakarehistro na sa sistema!")
+            else:
+                new_row = pd.DataFrame([[new_id, new_name, new_age, new_branch, new_crime,
+                                         new_civil, new_status, new_room]], columns=COLUMNS)
+                st.session_state.pdl_data = pd.concat([data, new_row], ignore_index=True)
+                save_data(st.session_state.pdl_data)
+                st.sidebar.success(f"Tagumpay na naidagdag si {new_name}!")
+                st.rerun()
 
 st.sidebar.markdown("---")
 st.sidebar.header("✏️ I-edit / 🗑️ Delete PDL")
@@ -326,17 +338,20 @@ def bar_panel(col, title, counts):
             if counts.empty:
                 st.caption("Walang data.")
                 return
-            # Horizontal bar chart para lumitaw nang maayos ang lahat ng branches
             fig = px.bar(counts, x="count", y="label", orientation='h', text="count",
                          color_discrete_sequence=[CYAN])
             fig.update_traces(textposition="outside", cliponaxis=False)
             style_fig(fig, 300)
             fig.update_layout(margin=dict(t=10, b=10, l=10, r=25),
                               xaxis_title=None, yaxis_title=None,
-                              yaxis=dict(autorange="reversed")) # Pataas ang pagkasunod-sunod mula pinakamarami
+                              yaxis=dict(autorange="reversed"))
             fig.update_xaxes(showgrid=True, gridcolor=EDGE)
             fig.update_yaxes(showgrid=False)
             st.plotly_chart(fig, use_container_width=True)
+
+def highlight_duplicates(s):
+    is_dup = s.duplicated(keep=False)
+    return ['background-color: #E53935; color: white;' if v else '' for v in is_dup]
 
 def kpi(label, value, sub="", cls=""):
     st.markdown(f'<div class="kpi {cls}"><div class="lbl">{label}</div>'
@@ -408,7 +423,6 @@ if df.empty:
     for col, title in zip([c2, c3, c4, c5], ["Crime Category", "Civil Status", "Age Bracket", "Case Status"]):
         pie_panel(col, title, empty)
 else:
-    # Ang Branch ay gagamit na ng horizontal bar chart para makita lahat nang hindi nagsisiksikan
     bar_panel(c1, "Branch Distribution", count_by(df['Branch']))
     pie_panel(c2, "Crime Category", count_by(df['Uri ng Kaso']))
     pie_panel(c3, "Civil Status", count_by(df['Civil Status']))
@@ -436,6 +450,11 @@ with r1:
 
 with r2:
     with st.container(border=True):
-        st.markdown('<div class="panel-title">Masterlist ng mga PDL</div>', unsafe_allow_html=True)
+        st.markdown('<div class="panel-title">Masterlist ng mga PDL (Awtomatikong nakapula ang Duplicate)</div>', unsafe_allow_html=True)
         display_df = df.drop(columns=['Age Group']) if 'Age Group' in df.columns else df
-        st.dataframe(display_df, use_container_width=True, height=250, hide_index=True)
+        
+        if not display_df.empty:
+            styled_df = display_df.style.apply(highlight_duplicates, subset=['Pangalan'])
+            st.dataframe(styled_df, use_container_width=True, height=250, hide_index=False)
+        else:
+            st.dataframe(display_df, use_container_width=True, height=250, hide_index=True)
