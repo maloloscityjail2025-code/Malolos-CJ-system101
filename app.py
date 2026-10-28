@@ -1,5 +1,11 @@
 import base64
 from datetime import datetime
+
+# Kunin ang live na petsa ngayon
+current_date = datetime.now().strftime("%B %d, %Y")
+
+# Gamitin ito sa iyong dashboard display
+st.markdown(f"PDL DETAINED AS OF **{current_date}**")
 import os
 
 import pandas as pd
