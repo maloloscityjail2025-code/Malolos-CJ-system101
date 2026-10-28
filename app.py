@@ -319,6 +319,25 @@ def pie_panel(col, title, counts):
                                x=0.5, y=0.5, font=dict(size=22, color=GOLD))
             st.plotly_chart(fig, use_container_width=True)
 
+def bar_panel(col, title, counts):
+    with col:
+        with st.container(border=True):
+            st.markdown(f'<div class="panel-title">{title}</div>', unsafe_allow_html=True)
+            if counts.empty:
+                st.caption("Walang data.")
+                return
+            # Horizontal bar chart para lumitaw nang maayos ang lahat ng branches
+            fig = px.bar(counts, x="count", y="label", orientation='h', text="count",
+                         color_discrete_sequence=[CYAN])
+            fig.update_traces(textposition="outside", cliponaxis=False)
+            style_fig(fig, 300)
+            fig.update_layout(margin=dict(t=10, b=10, l=10, r=25),
+                              xaxis_title=None, yaxis_title=None,
+                              yaxis=dict(autorange="reversed")) # Pataas ang pagkasunod-sunod mula pinakamarami
+            fig.update_xaxes(showgrid=True, gridcolor=EDGE)
+            fig.update_yaxes(showgrid=False)
+            st.plotly_chart(fig, use_container_width=True)
+
 def kpi(label, value, sub="", cls=""):
     st.markdown(f'<div class="kpi {cls}"><div class="lbl">{label}</div>'
                 f'<div class="val">{value}</div><div class="sub">{sub or "&nbsp;"}</div></div>',
@@ -379,17 +398,18 @@ with kpi_cols[4]:
 
 st.markdown("---")
 
-# ---------- ROW 2: 5 PIE CHARTS SA IBABA NG KPIS ----------
+# ---------- ROW 2: CHARTS SA IBABA NG KPIS ----------
 st.markdown("### 📈 PDL Demographics & Case Analytics")
 c1, c2, c3, c4, c5 = st.columns(5)
 
 if df.empty:
     empty = pd.DataFrame(columns=["label", "count"])
-    for col, title in zip([c1, c2, c3, c4, c5],
-                          ["Branch", "Crime Category", "Civil Status", "Age Bracket", "Case Status"]):
+    bar_panel(c1, "Branch", empty)
+    for col, title in zip([c2, c3, c4, c5], ["Crime Category", "Civil Status", "Age Bracket", "Case Status"]):
         pie_panel(col, title, empty)
 else:
-    pie_panel(c1, "Branch Distribution", count_by(df['Branch']))
+    # Ang Branch ay gagamit na ng horizontal bar chart para makita lahat nang hindi nagsisiksikan
+    bar_panel(c1, "Branch Distribution", count_by(df['Branch']))
     pie_panel(c2, "Crime Category", count_by(df['Uri ng Kaso']))
     pie_panel(c3, "Civil Status", count_by(df['Civil Status']))
     pie_panel(c4, "Age Bracket", count_by(df['Age Group'], BRACKETS))
