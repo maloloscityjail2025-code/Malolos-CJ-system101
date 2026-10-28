@@ -1,11 +1,5 @@
 import base64
-from datetime import datetime
-
-# 1. Ideklara muna ang variable na ito bago mo gamitin:
-current_date = datetime.now().strftime("%B %d, %Y")
-
-# 2. Pagkatapos ay saka mo i-display sa st.markdown:
-st.markdown(f"PDL DETAINED AS OF **{current_date}**")
+from datetime import datetime, timedelta
 import os
 
 import pandas as pd
@@ -278,11 +272,11 @@ if not data.empty:
                                     value=int(cur['Edad']), key=f"a{selected_id}")
             u_branch = st.text_input("Bagong Branch", value=str(cur['Branch']), key=f"b{selected_id}")
             u_crime = st.selectbox("Bagong Uri ng Kaso", CRIMES,
-                                    index=idx_of(CRIMES, cur['Uri ng Kaso']), key=f"c{selected_id}")
+                                   index=idx_of(CRIMES, cur['Uri ng Kaso']), key=f"c{selected_id}")
             u_civil = st.selectbox("Bagong Civil Status", CIVIL,
-                                    index=idx_of(CIVIL, cur['Civil Status']), key=f"cs{selected_id}")
+                                   index=idx_of(CIVIL, cur['Civil Status']), key=f"cs{selected_id}")
             u_status = st.selectbox("Bagong Status", STATUSES,
-                                     index=idx_of(STATUSES, cur['Status']), key=f"s{selected_id}")
+                                   index=idx_of(STATUSES, cur['Status']), key=f"s{selected_id}")
             u_room = st.selectbox("Bagong Room / Cell", ROOMS,
                                    index=idx_of(ROOMS, cur['Room / Cell']), key=f"r{selected_id}")
             if st.form_submit_button("I-update"):
@@ -384,6 +378,9 @@ if logo3_b64:
     logos_html += f'<img src="data:image/png;base64,{logo3_b64}" style="height: 50px; border-radius: 4px;">'
 logos_html += '</div>'
 
+# Kumuha ng tamang Philippine Time (UTC + 8 hours) para hindi sumunod sa UTC ng server
+ph_now = datetime.utcnow() + timedelta(hours=8)
+
 st.markdown(
     f'<div class="hdr" style="display: flex; align-items: center;">'
     f'{logos_html}'
@@ -396,7 +393,7 @@ st.markdown(
     f'{ALERT_STATUS}'
     f'</div>'
     f'</div>'
-    f'<div class="hdr-date">PDL DETAINED AS OF<br><b>{datetime.now(ZoneInfo("Asia/Manila")):%B %d, %Y}</b></div>'
+    f'<div class="hdr-date">PDL DETAINED AS OF<br><b>{ph_now.strftime("%B %d, %Y")}</b></div>'
     f'</div>',
     unsafe_allow_html=True
 )
@@ -446,11 +443,11 @@ with r1:
         else:
             rooms = count_by(df['Room / Cell'], ROOMS)
             fig_room = px.bar(rooms, x="label", y="count", text="count",
-                              color_discrete_sequence=[RED])
+                             color_discrete_sequence=[RED])
             fig_room.update_traces(textposition="outside", cliponaxis=False)
             style_fig(fig_room, 250)
             fig_room.update_layout(margin=dict(t=10, b=10, l=10, r=10),
-                                    xaxis_title=None, yaxis_title=None)
+                                   xaxis_title=None, yaxis_title=None)
             fig_room.update_yaxes(gridcolor=EDGE)
             st.plotly_chart(fig_room, use_container_width=True)
 
