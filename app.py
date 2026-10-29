@@ -11,6 +11,65 @@ st.set_page_config(page_title="Malolos City Jail Virtual Dashboard", layout="wid
 EXCEL_FILE = "pdl_database.xlsx"
 SETTINGS_FILE = "jail_settings.xlsx"
 
+# ---------- LOGIN SYSTEM ----------
+def check_password():
+    """Returns `True` if the user had the correct password."""
+
+    def password_entered():
+        """Checks whether a password entered by the user is correct."""
+        # Palitan ang mga username at password dito ayon sa gusto mo
+        CREDENTIALS = {
+            "admin": "MalolosJail2026!",
+            "duty_officer": "jailguard123"
+        }
+        
+        u = st.session_state["username"]
+        p = st.session_state["password"]
+        
+        if u in CREDENTIALS and CREDENTIALS[u] == p:
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # Tanggalin ang password sa session para sa seguridad
+            del st.session_state["username"]
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        # Form para sa Login
+        st.markdown(
+            """
+            <div style="display: flex; justify-content: center; align-items: center; height: 60vh;">
+                <div style="background: #0D2147; padding: 30px; border-radius: 10px; border: 1px solid #1B4F9C; width: 400px; text-align: center;">
+                    <h2 style="color: #F5C518; margin-bottom: 20px;">🔒 Malolos City Jail Login</h2>
+                </div>
+            </div>
+            """, 
+            unsafe_allow_html=True
+        )
+        
+        with st.form("login_form"):
+            st.text_input("Username", key="username")
+            st.text_input("Password", type="password", key="password")
+            st.form_submit_button("Mag-log in", on_click=password_entered)
+            
+        if "password_correct" in st.session_state and not st.session_state["password_correct"]:
+            st.error("❌ Mali ang username o password. Subukang muli.")
+        return False
+        
+    elif not st.session_state["password_correct"]:
+        # Subukang muli kung mali ang nailagay
+        with st.form("login_form"):
+            st.text_input("Username", key="username")
+            st.text_input("Password", type="password", key="password")
+            st.form_submit_button("Mag-log in", on_click=password_entered)
+        st.error("❌ Mali ang username o password.")
+        return False
+    else:
+        return True
+
+# Itigil ang pag-load ng dashboard kung hindi pa naka-log in
+if not check_password():
+    st.stop()
+
 # ---------- SETTINGS PERSISTENCE ----------
 def load_settings():
     if os.path.exists(SETTINGS_FILE):
@@ -290,6 +349,12 @@ if not data.empty:
             st.session_state.pdl_data = data[data['PDL ID'] != selected_id].reset_index(drop=True)
             save_data(st.session_state.pdl_data)
             st.rerun()
+
+# Ilagay ito sa bandang dulo o sa gitna ng sidebar setup
+st.sidebar.markdown("---")
+if st.sidebar.button("🚪 Mag-log out"):
+    st.session_state["password_correct"] = False
+    st.rerun()
 
 # ---------- COMPUTE ----------
 df = st.session_state.pdl_data.copy()
