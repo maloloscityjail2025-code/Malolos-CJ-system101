@@ -1,5 +1,6 @@
 import base64
 from datetime import datetime, timedelta
+import json
 import os
 
 import pandas as pd
@@ -10,15 +11,16 @@ from google.oauth2.service_account import Credentials
 
 st.set_page_config(page_title="Malolos City Jail Virtual Dashboard", layout="wide")
 
-# ---------- GOOGLE SHEETS CONNECTION ----------
+# ---------- GOOGLE SHEETS CONNECTION (JSON LOADS) ----------
 @st.cache_resource
 def get_gspread_client():
     scope = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
+    service_account_info = json.loads(st.secrets["gcp_service_account"]["json_data"])
     credentials = Credentials.from_service_account_info(
-        st.secrets["gcp_service_account"], scopes=scope
+        service_account_info, scopes=scope
     )
     return gspread.authorize(credentials)
 
@@ -26,7 +28,7 @@ try:
     gc = get_gspread_client()
     spreadsheet = gc.open("MalolosJailDB")
 except Exception as e:
-    st.error(f"⚠️ Nabigo ang pagkonekta sa Google Sheets. Suriin ang iyong Streamlit Secrets. Detalye: {e}")
+    st.error(f"⚠️ Nabigo ang pagkonekta sa Google Sheets. Suriin ang iyong Streamlit Secrets (`json_data`). Detalye: {e}")
     st.stop()
 
 # ---------- LOGIN SYSTEM ----------
