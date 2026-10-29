@@ -1,35 +1,22 @@
 import base64
 from datetime import datetime, timedelta
-import json
 import os
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
-import gspread
-from google.oauth2.service_account import Credentials
 
 st.set_page_config(page_title="Malolos City Jail Virtual Dashboard", layout="wide")
 
-# ---------- GOOGLE SHEETS CONNECTION (JSON LOADS) ----------
+# ---------- GOOGLE SHEETS CONNECTION (ST.CONNECTION) ----------
 @st.cache_resource
-def get_gspread_client():
-    scope = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
-    service_account_info = json.loads(st.secrets["gcp_service_account"]["json_data"])
-    credentials = Credentials.from_service_account_info(
-        service_account_info, scopes=scope
-    )
-    return gspread.authorize(credentials)
+def get_sheet_data(worksheet_name):
+    conn = st.connection("gsheets", type="gsheets")
+    return conn.read(worksheet=worksheet_name, ttl=0)
 
-try:
-    gc = get_gspread_client()
-    spreadsheet = gc.open("MalolosJailDB")
-except Exception as e:
-    st.error(f"⚠️ Nabigo ang pagkonekta sa Google Sheets. Suriin ang iyong Streamlit Secrets (`json_data`). Detalye: {e}")
-    st.stop()
+def update_sheet_data(df, worksheet_name):
+    conn = st.connection("gsheets", type="gsheets")
+    conn.update(worksheet=worksheet_name, data=df)
 
 # ---------- LOGIN SYSTEM ----------
 def check_password():
@@ -86,32 +73,28 @@ def check_password():
 if not check_password():
     st.stop()
 
-# ---------- LOAD & SAVE FUNCTIONS (GOOGLE SHEETS) ----------
+# ---------- LOAD & SAVE FUNCTIONS ----------
 def load_data():
     try:
-        sheet = spreadsheet.worksheet("pdl_data")
-        data = sheet.get_all_records()
-        if not data:
+        df = get_sheet_data("pdl_data")
+        if df.empty:
             return pd.DataFrame(columns=['PDL ID', 'Pangalan', 'Edad', 'Branch', 'Uri ng Kaso', 'Civil Status', 'Status', 'Room / Cell'])
-        return pd.DataFrame(data)
+        return df
     except Exception as e:
         st.error(f"Error sa pag-load ng PDL data: {e}")
         return pd.DataFrame(columns=['PDL ID', 'Pangalan', 'Edad', 'Branch', 'Uri ng Kaso', 'Civil Status', 'Status', 'Room / Cell'])
 
 def save_data(df):
     try:
-        sheet = spreadsheet.worksheet("pdl_data")
-        sheet.clear()
-        sheet.update([df.columns.values.tolist()] + df.values.tolist())
+        update_sheet_data(df, "pdl_data")
     except Exception as e:
         st.error(f"Error sa pag-save ng PDL data: {e}")
 
 def load_settings():
     try:
-        sheet = spreadsheet.worksheet("Settings")
-        data = sheet.get_all_records()
-        if data:
-            return data[0]
+        df = get_sheet_data("Settings")
+        if not df.empty:
+            return df.iloc[0].to_dict()
     except Exception:
         pass
     
@@ -138,13 +121,16 @@ def update_settings_file():
 
 def save_settings(alert, male, female, escort, admin, nurse, capacity):
     try:
-        sheet = spreadsheet.worksheet("Settings")
-        sheet.clear()
-        settings_data = [
-            ["Alert Status", "Duty Male", "Duty Female", "Duty Escort", "Duty Admin", "Duty Nurse", "Jail Capacity"],
-            [alert, male, female, escort, admin, nurse, capacity]
-        ]
-        sheet.update(settings_data)
+        df_set = pd.DataFrame([{
+            "Alert Status": alert,
+            "Duty Male": male,
+            "Duty Female": female,
+            "Duty Escort": escort,
+            "Duty Admin": admin,
+            "Duty Nurse": nurse,
+            "Jail Capacity": capacity
+        }])
+        update_sheet_data(df_set, "Settings")
     except Exception as e:
         st.error(f"Error sa pag-save ng settings: {e}")
 
