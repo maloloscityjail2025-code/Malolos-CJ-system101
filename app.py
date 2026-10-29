@@ -151,6 +151,14 @@ def save_settings(alert, male, female, escort, admin, nurse, capacity):
 
 saved_set = load_settings()
 
+# Maagang dinefine ang alert_bg para magamit agad sa header
+curr_alert_status = saved_set.get("Alert Status", "WHITE ALERT (Normal)")
+alert_bg = "#43A047" 
+if "BLUE" in curr_alert_status:
+    alert_bg = "#1E88E5" 
+elif "RED" in curr_alert_status:
+    alert_bg = "#E53935" 
+
 # ---------- THEME ----------
 BG, PANEL, EDGE = "#07142E", "#0D2147", "#1B4F9C"
 CYAN, GOLD, RED, TEXT = "#1FD6E6", "#F5C518", "#E53935", "#E8EEF9"
@@ -244,8 +252,7 @@ st.sidebar.markdown("---")
 st.sidebar.header("🚨 Operational Status & Duty")
 
 alert_options = ["WHITE ALERT (Normal)", "BLUE ALERT (Heightened)", "RED ALERT (Full Alert)"]
-curr_alert = saved_set.get("Alert Status", "WHITE ALERT (Normal)")
-alert_idx = alert_options.index(curr_alert) if curr_alert in alert_options else 0
+alert_idx = alert_options.index(curr_alert_status) if curr_alert_status in alert_options else 0
 
 ALERT_STATUS = st.sidebar.selectbox(
     "Alert Status", 
@@ -296,12 +303,6 @@ duty_nurse = st.sidebar.number_input(
 )
 
 total_duty = duty_male + duty_female + duty_escort + duty_admin + duty_nurse
-
-alert_bg = "#43A047" 
-if "BLUE" in ALERT_STATUS:
-    alert_bg = "#1E88E5" 
-elif "RED" in ALERT_STATUS:
-    alert_bg = "#E53935" 
 
 st.sidebar.markdown("---")
 st.sidebar.header("➕ Magdagdag ng PDL")
@@ -443,7 +444,7 @@ def kpi(label, value, sub="", cls=""):
                 f'<div class="val">{value}</div><div class="sub">{sub or "&nbsp;"}</div></div>',
                 unsafe_allow_html=True)
 
-# ---------- HEADER WITH 3 LOGOS ----------
+# ---------- HEADER WITH LOGOS (NAKASALI ANG LOGO 3 SA KABILANG DULO) ----------
 def get_base64_image(image_path):
     if os.path.exists(image_path):
         with open(image_path, "rb") as img_file:
@@ -454,24 +455,29 @@ logo1_b64 = get_base64_image("logo1.jpg")
 logo2_b64 = get_base64_image("logo2.png") 
 logo3_b64 = get_base64_image("logo3.png") 
 
-logos_html = '<div style="display: flex; align-items: center; gap: 10px; margin-right: 15px;">'
+# Kaliwang bahagi (Logo 1 at Logo 2)
+left_logos_html = '<div style="display: flex; align-items: center; gap: 10px; margin-right: 15px;">'
 if logo1_b64:
-    logos_html += f'<img src="data:image/png;base64,{logo1_b64}" style="height: 50px; border-radius: 4px;">'
+    left_logos_html += f'<img src="data:image/png;base64,{logo1_b64}" style="height: 50px; border-radius: 4px;">'
 if logo2_b64:
-    logos_html += f'<img src="data:image/png;base64,{logo2_b64}" style="height: 50px; border-radius: 4px;">'
+    left_logos_html += f'<img src="data:image/png;base64,{logo2_b64}" style="height: 50px; border-radius: 4px;">'
+left_logos_html += '</div>'
+
+# Kanang bahagi (Logo 3 na inilipat sa kabila)
+right_logo_html = ''
 if logo3_b64:
-    logos_html += f'<img src="data:image/png;base64,{logo3_b64}" style="height: 50px; border-radius: 4px;">'
-logos_html += '</div>'
+    right_logo_html = f'<div style="margin-left: 15px; margin-right: 15px;"><img src="data:image/png;base64,{logo3_b64}" style="height: 50px; border-radius: 4px;"></div>'
 
 ph_now = datetime.utcnow() + timedelta(hours=8)
 
 st.markdown(
     f'<div class="hdr" style="display: flex; align-items: center;">'
-    f'{logos_html}'
+    f'{left_logos_html}'
     f'<div style="flex-grow: 1;">'
     f'<div class="hdr-title">MALOLOS CITY JAIL VIRTUAL DASHBOARD</div>'
     f'<div class="hdr-sub">Congestion Rate and PDL Management System ni Calayag</div>'
     f'</div>'
+    f'{right_logo_html}'  # <--- Logo 3 na nasa kabilang dulo
     f'<div style="text-align: right; margin-right: 15px;">'
     f'<div style="background: {alert_bg}; color: #ffffff; padding: 4px 12px; border-radius: 5px; font-weight: 800; font-size: 0.85rem; display: inline-block;">'
     f'{ALERT_STATUS}'
