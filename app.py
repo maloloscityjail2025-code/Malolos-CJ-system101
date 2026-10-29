@@ -221,14 +221,49 @@ def idx_of(items, value):
     target = str(value).strip().lower()
     return str_items.index(target) if target in str_items else 0
 
-# ---------- SIDEBAR LOGO ----------
-LOGO_NAME = "logo2.png" 
-if os.path.exists(LOGO_NAME):
-    st.sidebar.image(LOGO_NAME, use_container_width=True)
-    st.sidebar.markdown("---")
-else:
-    st.sidebar.warning(f"⚠️ Walang nakitang {LOGO_NAME} sa folder.")
+# ---------- HEADER WITH LOGOS ----------
+def get_base64_image(image_path):
+    if os.path.exists(image_path):
+        with open(image_path, "rb") as img_file:
+            return base64.b64encode(img_file.read()).decode()
+    return None
 
+logo1_b64 = get_base64_image("logo1.jpg") 
+logo2_b64 = get_base64_image("logo2.png") 
+logo3_b64 = get_base64_image("logo3.png") 
+
+# Left side logos (Logo 1 at Logo 2)
+left_logos_html = '<div style="display: flex; align-items: center; gap: 10px; margin-right: 15px;">'
+if logo1_b64:
+    left_logos_html += f'<img src="data:image/png;base64,{logo1_b64}" style="height: 50px; border-radius: 4px;">'
+if logo2_b64:
+    left_logos_html += f'<img src="data:image/png;base64,{logo2_b64}" style="height: 50px; border-radius: 4px;">'
+left_logos_html += '</div>'
+
+# Right side logo (Logo 3)
+right_logo_html = ''
+if logo3_b64:
+    right_logo_html = f'<div style="margin-left: 15px; margin-right: 15px;"><img src="data:image/png;base64,{logo3_b64}" style="height: 50px; border-radius: 4px;"></div>'
+
+ph_now = datetime.utcnow() + timedelta(hours=8)
+
+st.markdown(
+    f'<div class="hdr" style="display: flex; align-items: center;">'
+    f'{left_logos_html}'
+    f'<div style="flex-grow: 1;">'
+    f'<div class="hdr-title">MALOLOS CITY JAIL VIRTUAL DASHBOARD</div>'
+    f'<div class="hdr-sub">Congestion Rate and PDL Management System ni Calayag</div>'
+    f'</div>'
+    f'{right_logo_html}'  # <--- Dito nailagay ang Logo 3 sa kabilang dulo bago ang alert/date
+    f'<div style="text-align: right; margin-right: 15px;">'
+    f'<div style="background: {alert_bg}; color: #ffffff; padding: 4px 12px; border-radius: 5px; font-weight: 800; font-size: 0.85rem; display: inline-block;">'
+    f'{ALERT_STATUS}'
+    f'</div>'
+    f'</div>'
+    f'<div class="hdr-date">PDL DETAINED AS OF<br><b>{ph_now.strftime("%B %d, %Y")}</b></div>'
+    f'</div>',
+    unsafe_allow_html=True
+)
 # ---------- SIDEBAR (AUTOMATIC SAVING) ----------
 st.sidebar.header("⚙️ Jail Management")
 
