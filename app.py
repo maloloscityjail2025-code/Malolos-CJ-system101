@@ -11,16 +11,25 @@ from google.oauth2.service_account import Credentials
 
 st.set_page_config(page_title="Malolos City Jail Virtual Dashboard", layout="wide")
 
-# ---------- GOOGLE SHEETS CONNECTION GAMIT ANG ST.CONNECTION ----------
+# ---------- GOOGLE SHEETS CONNECTION (JSON LOADS) ----------
 @st.cache_resource
-def get_sheet_data(worksheet_name):
-    conn = st.connection("gsheets", type="gsheets")
-    data = conn.read(worksheet=worksheet_name, ttl=0)
-    return data
+def get_gspread_client():
+    scope = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    service_account_info = json.loads(st.secrets["gcp_service_account"]["json_data"])
+    credentials = Credentials.from_service_account_info(
+        service_account_info, scopes=scope
+    )
+    return gspread.authorize(credentials)
 
-def update_sheet_data(df, worksheet_name):
-    conn = st.connection("gsheets", type="gsheets")
-    conn.update(worksheet=worksheet_name, data=df)
+try:
+    gc = get_gspread_client()
+    spreadsheet = gc.open("MalolosJailDB")
+except Exception as e:
+    st.error(f"⚠️ Nabigo ang pagkonekta sa Google Sheets. Suriin ang iyong Streamlit Secrets (`json_data`). Detalye: {e}")
+    st.stop()
 
 # ---------- LOGIN SYSTEM ----------
 def check_password():
@@ -76,55 +85,6 @@ def check_password():
 
 if not check_password():
     st.stop()
-
-def load_data():
-    try:
-        df = get_sheet_data("pdl_data")
-        if df.empty:
-            return pd.DataFrame(columns=['PDL ID', 'Pangalan', 'Edad', 'Branch', 'Uri ng Kaso', 'Civil Status', 'Status', 'Room / Cell'])
-        return df
-    except Exception as e:
-        st.error(f"Error sa pag-load ng PDL data: {e}")
-        return pd.DataFrame(columns=['PDL ID', 'Pangalan', 'Edad', 'Branch', 'Uri ng Kaso', 'Civil Status', 'Status', 'Room / Cell'])
-
-def save_data(df):
-    try:
-        update_sheet_data(df, "pdl_data")
-    except Exception as e:
-        st.error(f"Error sa pag-save ng PDL data: {e}")
-
-def load_settings():
-    try:
-        df = get_sheet_data("Settings")
-        if not df.empty:
-            return df.iloc[0].to_dict()
-    except Exception:
-        pass
-    
-    return {
-        "Alert Status": "WHITE ALERT (Normal)",
-        "Duty Male": 5,
-        "Duty Female": 3,
-        "Duty Escort": 2,
-        "Duty Admin": 2,
-        "Duty Nurse": 1,
-        "Jail Capacity": 19
-    }
-
-def save_settings(alert, male, female, escort, admin, nurse, capacity):
-    try:
-        df_set = pd.DataFrame([{
-            "Alert Status": alert,
-            "Duty Male": male,
-            "Duty Female": female,
-            "Duty Escort": escort,
-            "Duty Admin": admin,
-            "Duty Nurse": nurse,
-            "Jail Capacity": capacity
-        }])
-        update_sheet_data(df_set, "Settings")
-    except Exception as e:
-        st.error(f"Error sa pag-save ng settings: {e}")
 
 # ---------- LOAD & SAVE FUNCTIONS (GOOGLE SHEETS) ----------
 def load_data():
