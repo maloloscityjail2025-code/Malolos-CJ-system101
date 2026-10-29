@@ -5,11 +5,29 @@ import os
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+import gspread
+from google.oauth2.service_account import Credentials
 
 st.set_page_config(page_title="Malolos City Jail Virtual Dashboard", layout="wide")
 
-EXCEL_FILE = "pdl_database.xlsx"
-SETTINGS_FILE = "jail_settings.xlsx"
+# ---------- GOOGLE SHEETS CONNECTION ----------
+@st.cache_resource
+def get_gspread_client():
+    scope = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    credentials = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"], scopes=scope
+    )
+    return gspread.authorize(credentials)
+
+try:
+    gc = get_gspread_client()
+    spreadsheet = gc.open("MalolosJailDB")
+except Exception as e:
+    st.error(f"⚠️ Nabigo ang pagkonekta sa Google Sheets. Suriin ang iyong Streamlit Secrets. Detalye: {e}")
+    st.stop()
 
 # ---------- LOGIN SYSTEM ----------
 def check_password():
@@ -17,7 +35,6 @@ def check_password():
 
     def password_entered():
         """Checks whether a password entered by the user is correct."""
-        # Palitan ang mga username at password dito ayon sa gusto mo
         CREDENTIALS = {
             "admin": "MalolosJail2026!",
             "duty_officer": "jailguard123"
@@ -28,13 +45,12 @@ def check_password():
         
         if u in CREDENTIALS and CREDENTIALS[u] == p:
             st.session_state["password_correct"] = True
-            del st.session_state["password"]  # Tanggalin ang password sa session para sa seguridad
+            del st.session_state["password"]  
             del st.session_state["username"]
         else:
             st.session_state["password_correct"] = False
 
     if "password_correct" not in st.session_state:
-        # Form para sa Login
         st.markdown(
             """
             <div style="display: flex; justify-content: center; align-items: center; height: 60vh;">
@@ -56,7 +72,6 @@ def check_password():
         return False
         
     elif not st.session_state["password_correct"]:
-        # Subukang muli kung mali ang nailagay
         with st.form("login_form"):
             st.text_input("Username", key="username")
             st.text_input("Password", type="password", key="password")
@@ -66,14 +81,38 @@ def check_password():
     else:
         return True
 
-# Itigil ang pag-load ng dashboard kung hindi pa naka-log in
 if not check_password():
     st.stop()
 
-# ---------- SETTINGS PERSISTENCE ----------
+# ---------- LOAD & SAVE FUNCTIONS (GOOGLE SHEETS) ----------
+def load_data():
+    try:
+        sheet = spreadsheet.worksheet("pdl_data")
+        data = sheet.get_all_records()
+        if not data:
+            return pd.DataFrame(columns=['PDL ID', 'Pangalan', 'Edad', 'Branch', 'Uri ng Kaso', 'Civil Status', 'Status', 'Room / Cell'])
+        return pd.DataFrame(data)
+    except Exception as e:
+        st.error(f"Error sa pag-load ng PDL data: {e}")
+        return pd.DataFrame(columns=['PDL ID', 'Pangalan', 'Edad', 'Branch', 'Uri ng Kaso', 'Civil Status', 'Status', 'Room / Cell'])
+
+def save_data(df):
+    try:
+        sheet = spreadsheet.worksheet("pdl_data")
+        sheet.clear()
+        sheet.update([df.columns.values.tolist()] + df.values.tolist())
+    except Exception as e:
+        st.error(f"Error sa pag-save ng PDL data: {e}")
+
 def load_settings():
-    if os.path.exists(SETTINGS_FILE):
-        return pd.read_excel(SETTINGS_FILE).iloc[0].to_dict()
+    try:
+        sheet = spreadsheet.worksheet("Settings")
+        data = sheet.get_all_records()
+        if data:
+            return data[0]
+    except Exception:
+        pass
+    
     return {
         "Alert Status": "WHITE ALERT (Normal)",
         "Duty Male": 5,
@@ -96,16 +135,16 @@ def update_settings_file():
     )
 
 def save_settings(alert, male, female, escort, admin, nurse, capacity):
-    df_set = pd.DataFrame([{
-        "Alert Status": alert,
-        "Duty Male": male,
-        "Duty Female": female,
-        "Duty Escort": escort,
-        "Duty Admin": admin,
-        "Duty Nurse": nurse,
-        "Jail Capacity": capacity
-    }])
-    df_set.to_excel(SETTINGS_FILE, index=False)
+    try:
+        sheet = spreadsheet.worksheet("Settings")
+        sheet.clear()
+        settings_data = [
+            ["Alert Status", "Duty Male", "Duty Female", "Duty Escort", "Duty Admin", "Duty Nurse", "Jail Capacity"],
+            [alert, male, female, escort, admin, nurse, capacity]
+        ]
+        sheet.update(settings_data)
+    except Exception as e:
+        st.error(f"Error sa pag-save ng settings: {e}")
 
 saved_set = load_settings()
 
@@ -158,27 +197,6 @@ STATUSES = ['Ongoing Trial', 'Serving Sentence', 'PDL Due for in Patient Rehabil
 ROOMS = ['Dorm 1', 'Dorm 2', 'Dorm 3', 'ISOLATION']
 BRACKETS = ['Under 18', 'Age 18-24', 'Age 25-30', 'Age 31-35', 'Age 36-41',
             'Age 42-47', 'Age 48-53', 'Age 54-59', 'Age 60-69', 'Above 70']
-
-def load_data():
-    if os.path.exists(EXCEL_FILE):
-        return pd.read_excel(EXCEL_FILE)
-    
-    df_default = pd.DataFrame({
-        'PDL ID': [101, 102, 103, 104, 105],
-        'Pangalan': ['John Jaybee Macapagal', 'Joel Sarmiento', 'Michael Angelo Calayag',
-                     'MacLhouie Honra', 'Mark Anthony Catacutan'],
-        'Edad': [22, 28, 42, 33, 62],
-        'Branch': ['RTC Branch 10', 'RTC Branch 14', 'RTC Branch 10', 'MTC Branch 1', 'RTC Branch 81'],
-        'Uri ng Kaso': ['Drugs', 'Crime Vs Property', 'Crime Vs Person', 'Non-Index Crime', 'Others'],
-        'Civil Status': ['Single', 'Married', 'Single', 'Broken', 'Single'],
-        'Status': ['Serving Sentence', 'Ongoing Trial', 'Serving Sentence', 'Ongoing Trial', 'Serving Sentence'],
-        'Room / Cell': ['Dorm 1', 'Dorm 2', 'Dorm 3', 'ISOLATION', 'Dorm 1'],
-    })
-    df_default.to_excel(EXCEL_FILE, index=False)
-    return df_default
-
-def save_data(df):
-    df.to_excel(EXCEL_FILE, index=False)
 
 def get_age_bracket(age):
     if age < 18:
@@ -276,7 +294,6 @@ duty_nurse = st.sidebar.number_input(
 
 total_duty = duty_male + duty_female + duty_escort + duty_admin + duty_nurse
 
-# Alert Status Color Mapping
 alert_bg = "#43A047" 
 if "BLUE" in ALERT_STATUS:
     alert_bg = "#1E88E5" 
@@ -286,9 +303,8 @@ elif "RED" in ALERT_STATUS:
 st.sidebar.markdown("---")
 st.sidebar.header("➕ Magdagdag ng PDL")
 
-# Form para sa pagdadagdag kasama ang Duplicate Validation
 with st.sidebar.form("pdl_form"):
-    new_id = int(data['PDL ID'].max() + 1) if not data.empty else 101
+    new_id = int(data['PDL ID'].max() + 1) if not data.empty and 'PDL ID' in data.columns else 101
     new_name = st.text_input("Pangalan ng PDL")
     new_age = st.number_input("Edad", min_value=18, max_value=100, value=30)
     new_branch = st.text_input("Branch (Manual Input)", value="RTC Branch ")
@@ -302,7 +318,7 @@ with st.sidebar.form("pdl_form"):
         if not new_name.strip():
             st.sidebar.error("⚠️ Mangyaring ilagay ang pangalan ng PDL.")
         else:
-            existing_names = data['Pangalan'].str.strip().str.lower() if not data.empty else pd.Series()
+            existing_names = data['Pangalan'].str.strip().str.lower() if not data.empty and 'Pangalan' in data.columns else pd.Series()
             input_name_cleaned = new_name.strip().lower()
             
             if input_name_cleaned in existing_names.values:
@@ -317,7 +333,7 @@ with st.sidebar.form("pdl_form"):
 
 st.sidebar.markdown("---")
 st.sidebar.header("✏️ I-edit / 🗑️ Delete PDL")
-if not data.empty:
+if not data.empty and 'PDL ID' in data.columns:
     action_type = st.sidebar.radio("Piliin ang Gawin", ["I-edit", "Mag-delete"])
     labels = {int(r['PDL ID']): f"{int(r['PDL ID'])} - {r['Pangalan']}" for _, r in data.iterrows()}
     selected_id = st.sidebar.selectbox("Piliin ang PDL", list(labels.keys()),
@@ -350,7 +366,6 @@ if not data.empty:
             save_data(st.session_state.pdl_data)
             st.rerun()
 
-# Ilagay ito sa bandang dulo o sa gitna ng sidebar setup
 st.sidebar.markdown("---")
 if st.sidebar.button("🚪 Mag-log out"):
     st.session_state["password_correct"] = False
@@ -358,14 +373,16 @@ if st.sidebar.button("🚪 Mag-log out"):
 
 # ---------- COMPUTE ----------
 df = st.session_state.pdl_data.copy()
-if not df.empty:
+if not df.empty and 'Edad' in df.columns:
     df['Age Group'] = df['Edad'].apply(get_age_bracket)
 
 population = len(df)
-congestion = (population / jail_capacity) * 100
+congestion = (population / jail_capacity) * 100 if jail_capacity > 0 else 0
 over = population - jail_capacity
 
 def count_by(series, order=None):
+    if series.empty:
+        return pd.DataFrame(columns=["label", "count"])
     vc = series.value_counts()
     if order:
         vc = vc.reindex(order, fill_value=0)
@@ -391,7 +408,7 @@ def pie_panel(col, title, counts):
             style_fig(fig, 300)
             fig.update_layout(margin=dict(t=8, b=70, l=8, r=8),
                               legend=dict(orientation="h", y=-0.02, yanchor="top",
-                                          font=dict(size=10)))
+                                         font=dict(size=10)))
             fig.add_annotation(text=f"<b>{int(counts['count'].sum())}</b>", showarrow=False,
                                x=0.5, y=0.5, font=dict(size=22, color=GOLD))
             st.plotly_chart(fig, use_container_width=True)
@@ -443,7 +460,6 @@ if logo3_b64:
     logos_html += f'<img src="data:image/png;base64,{logo3_b64}" style="height: 50px; border-radius: 4px;">'
 logos_html += '</div>'
 
-# Kumuha ng tamang Philippine Time (UTC + 8 hours) para hindi sumunod sa UTC ng server
 ph_now = datetime.utcnow() + timedelta(hours=8)
 
 st.markdown(
@@ -463,7 +479,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# ---------- ROW 1: HORIZONTAL KPI CARDS SA ITAAS ----------
+# ---------- ROW 1: KPI CARDS ----------
 st.markdown("### 📊 Operational Overview")
 kpi_cols = st.columns(5) 
 
@@ -481,7 +497,7 @@ with kpi_cols[4]:
 
 st.markdown("---")
 
-# ---------- ROW 2: CHARTS SA IBABA NG KPIS ----------
+# ---------- ROW 2: CHARTS ----------
 st.markdown("### 📈 PDL Demographics & Case Analytics")
 c1, c2, c3, c4, c5 = st.columns(5)
 
