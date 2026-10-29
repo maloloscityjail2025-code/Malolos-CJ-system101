@@ -1,5 +1,6 @@
 import base64
 from datetime import datetime, timedelta
+import json
 import os
 
 import pandas as pd
@@ -10,15 +11,17 @@ from google.oauth2.service_account import Credentials
 
 st.set_page_config(page_title="Malolos City Jail Virtual Dashboard", layout="wide")
 
-# ---------- GOOGLE SHEETS CONNECTION (GSPREAD) ----------
+# ---------- GOOGLE SHEETS CONNECTION ----------
 @st.cache_resource
 def get_gspread_client():
     scope = [
         "https://www.googleapis.com/auth/spreadsheets",
         "https://www.googleapis.com/auth/drive"
     ]
-    creds_dict = dict(st.secrets["gcp_service_account"])
-    credentials = Credentials.from_service_account_info(creds_dict, scopes=scope)
+    service_account_info = json.loads(st.secrets["gcp_service_account"]["json_data"])
+    credentials = Credentials.from_service_account_info(
+        service_account_info, scopes=scope
+    )
     return gspread.authorize(credentials)
 
 def get_sheet_data(worksheet_name):
