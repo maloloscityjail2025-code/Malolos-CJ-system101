@@ -475,7 +475,7 @@ st.markdown(
     f'{left_logos_html}'
     f'<div style="flex-grow: 1;">'
     f'<div class="hdr-title">MALOLOS CITY JAIL VIRTUAL DASHBOARD</div>'
-    f'<div class="hdr-sub">Congestion Rate and PDL Management System ni Calayag</div>'
+    f'<div class="hdr-sub">Congestion Rate and PDL Management System</div>'
     f'</div>'
     f'{right_logo_html}'  # <--- Logo 3 na nasa kabilang dulo
     f'<div style="text-align: right; margin-right: 15px;">'
